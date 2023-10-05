@@ -351,6 +351,16 @@ static gboolean draw_callback (GtkWidget *widget, cairo_t *cr, CalendarPtr this)
 }
 
 
+gboolean on_right_click(GtkWidget *widget, GdkEventButton *event, gpointer data)
+{
+    if (event->button == 3) // 3 is the right mouse button
+    {
+        gtk_main_quit();
+        return TRUE;
+    }
+    return FALSE;
+}
+
 /*
  * Create the main window and add all needed widgets
  */
@@ -378,6 +388,7 @@ GtkWidget* init_widgets(CalendarPtr this)
         g_signal_connect(GTK_WINDOW(window),
                 "focus_out_event", G_CALLBACK(gtk_widget_destroy), NULL);
     gtk_container_set_border_width(GTK_CONTAINER(window), 10);
+    g_signal_connect(GTK_WINDOW(window), "button-press-event", G_CALLBACK(on_right_click), NULL);
 
     grid = gtk_grid_new();
     gtk_widget_set_name(GTK_WIDGET(grid), "grid");
