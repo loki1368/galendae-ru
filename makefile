@@ -35,3 +35,6 @@ $(BLD_DIR)/%.o: $(SRC_DIR)/%.c
 clean:
 	@echo "Cleaning..."; 
 	$(RM) -r $(BLD_DIR) $(EXEC)
+
+install:
+	@./install.sh
