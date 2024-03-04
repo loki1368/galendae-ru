@@ -439,8 +439,8 @@ GtkWidget* init_widgets(CalendarPtr this)
             label = gtk_label_new(NULL);
             gtk_widget_set_margin_bottom(GTK_WIDGET(label),5);
             gtk_widget_set_margin_top(GTK_WIDGET(label),5);
-            gtk_widget_set_margin_start(GTK_WIDGET(label),11);
-            gtk_widget_set_margin_end(GTK_WIDGET(label),11);
+            gtk_widget_set_margin_start(GTK_WIDGET(label),16);
+            gtk_widget_set_margin_end(GTK_WIDGET(label),16);
             gtk_grid_attach(GTK_GRID(grid), label, day, week, 1, 1);
         }
     }
