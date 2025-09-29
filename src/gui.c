@@ -36,13 +36,13 @@ struct Weekdays {
     char *longname;
     char *shortname;
 } weekdays[] = {
-    {"Sunday", "Su"},
-    {"Monday", "Mo"},
-    {"Tuesday", "Tu"},
-    {"Wednesday", "We"},
-    {"Thursday", "Th"},
-    {"Friday", "Fr"},
-    {"Saturday", "Sa"}
+    {"Воскресенье", "Вс"},
+    {"Понедельник", "Пн"},
+    {"Вторник", "Вт"},
+    {"Среда", "Ср"},
+    {"Четверг", "Чт"},
+    {"Пятница", "Пт"},
+    {"Суббота", "Сб"}
 };
 
 
@@ -50,20 +50,19 @@ struct Month {
     char *longName;
     unsigned int num_days;
 } months[] = {
-    {"January", 31},
-    {"February", 28},
-    {"March", 31},
-    {"April", 30},
-    {"May", 31},
-    {"June", 30},
-    {"July", 31},
-    {"August", 31},
-    {"September", 30},
-    {"October", 31},
-    {"November", 30},
-    {"December", 31}
+    {"Январь", 31},
+    {"Февраль", 28},
+    {"Март", 31},
+    {"Апрель", 30},
+    {"Май", 31},
+    {"Июнь", 30},
+    {"Июль", 31},
+    {"Август", 31},
+    {"Сентябрь", 30},
+    {"Октябрь", 31},
+    {"Ноябрь", 30},
+    {"Декабрь", 31}
 };
-
 
 typedef struct {
     unsigned int row;
