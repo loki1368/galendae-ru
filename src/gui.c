@@ -9,6 +9,8 @@
 #include <stdlib.h>
 #include <time.h>
 #include <string.h>
+#include <ctype.h>
+#include <stdbool.h>
 #include "gui.h"
 #include "config.h"
 #include "common.h"
@@ -45,6 +47,22 @@ struct Weekdays {
     {"Суббота", "Сб"}
 };
 
+#define START_YEAR 2023
+
+#define MAX_MONTHS 12
+#define MAX_DAYS 31
+#define MAX_YEARS 10
+
+
+#define MAX_LINE_LENGTH 1024
+
+// Day types
+#define WORK_DAY 0      // Working day
+#define SHORT_DAY 1     // Shortened day (marked with *)
+#define WEEKEND_DAY 2   // Weekend/holiday
+
+// Array to store day types (0-working, 1-shortened, 2-weekend)
+int dayTypes[MAX_YEARS][MAX_MONTHS][MAX_DAYS] = {0};
 
 struct Month {
     char *longName;
@@ -84,6 +102,7 @@ struct Calendar {
     char *background_color;
     char *foreground_color;
     char *fringe_date_color;
+    char *nonworking_day_color;
     char *highlight_color;
     char *month_font_size;
     char *month_font_weight;
@@ -170,6 +189,15 @@ static int is_leap_year(const int year)
         return FALSE;
 }
 
+// Function to get day type
+int getDayType(int year, int month, int day) {
+    if (month < 0 || month >= MAX_MONTHS || day < 1 || day > MAX_DAYS) {
+        return -1; // Invalid date
+    }
+    return dayTypes[year][month][day - 1];
+}
+
+
 /*
  * Update the calendar display
  */
@@ -209,9 +237,15 @@ static void update_calendar(CalendarPtr this)
             label = gtk_grid_get_child_at(GTK_GRID(grid), col, line);
 
             if (day > 0 && day <= (int)months[this->month-1].num_days) {
-                gtk_widget_set_name(GTK_WIDGET(label), "date");
-                sprintf(temp, "%d", day);
-            } else {
+			    gtk_widget_set_name(GTK_WIDGET(label), "date");
+			    sprintf(temp, "%d", day);
+				int day_type = getDayType(this->year - START_YEAR, this->month-1, day);
+
+			    if(day_type == 2)
+				  gtk_widget_set_name(GTK_WIDGET(label), "noworkDay");
+				else if(day_type == 1)
+				    sprintf(temp, "%d*", day);
+                            } else {
                 gtk_widget_set_name(GTK_WIDGET(label), "fringeDate");
                 if (day < 1)
                     sprintf(temp, "%d", months[prev_month-1].num_days+day);
@@ -350,7 +384,7 @@ static gboolean draw_callback (GtkWidget *widget, cairo_t *cr, CalendarPtr this)
 }
 
 
-gboolean on_right_click(GtkWidget *widget, GdkEventButton *event, gpointer data)
+gboolean on_right_click(GtkWidget *UNUSED(widget), GdkEventButton *event, gpointer UNUSED(data))
 {
     if (event->button == 3) // 3 is the right mouse button
     {
@@ -453,19 +487,21 @@ GtkWidget* init_widgets(CalendarPtr this)
  */
 void set_style(CalendarPtr this)
 {
-    char *format = 
+    char *format =
             "#mainWindow {background-color:%s; color:%s; font-size:%s; font-weight:%s;}"
             "#monthLabel {font-size:%s; font-weight:%s;}"
             "#weekdayLabel {font-size:%s; font-weight:%s;}"
             "#leftArrow, #rightArrow {font-size:%s; font-weight:%s;}"
-            "#fringeDate {color:%s;}";
+            "#fringeDate {color:%s;}"
+			"#noworkDay {color:%s;}";
     int size = strlen(format) - 22 +
         strlen(this->background_color) + strlen(this->foreground_color) +
         strlen(this->date_font_size) + strlen(this->date_font_weight) +
         strlen(this->month_font_size) + strlen(this->month_font_weight) +
         strlen(this->day_font_size) + strlen(this->day_font_weight) +
         strlen(this->arrow_font_size) + strlen(this->arrow_font_weight) +
-        strlen(this->fringe_date_color);
+        strlen(this->fringe_date_color) +
+        strlen(this->nonworking_day_color);
     char *style_data = malloc(size + 1);
     if (style_data) {
         sprintf(style_data, format,
@@ -474,7 +510,7 @@ void set_style(CalendarPtr this)
                 this->month_font_size, this->month_font_weight,
                 this->day_font_size, this->day_font_weight,
                 this->arrow_font_size, this->arrow_font_weight,
-                this->fringe_date_color);
+                this->fringe_date_color, this->nonworking_day_color);
         GtkCssProvider *provider = gtk_css_provider_new();
         gtk_css_provider_load_from_data(GTK_CSS_PROVIDER(provider),
                 style_data, strlen(style_data), NULL);
@@ -522,6 +558,7 @@ void set_default_config(CalendarPtr this)
     this->foreground_color = strdup("#000000");
     this->highlight_color = strdup("#2f2f2f");
     this->fringe_date_color = strdup("#717171");
+	this->nonworking_day_color = strdup("#FF1010");
 
     this->month_font_size = strdup("1.0em");
     this->month_font_weight = strdup("normal");
@@ -537,8 +574,144 @@ void set_default_config(CalendarPtr this)
 }
 
 
+// Function for parsing day strings and setting types
+void parseAndSetDays(int year, int month, const char* dayStr, int dayType) {
+    if (dayStr == NULL || strlen(dayStr) == 0) {
+        return;
+    }
+
+    char temp[MAX_LINE_LENGTH];
+    strcpy(temp, dayStr);
+
+    char* token = strtok(temp, ",");
+    while (token != NULL) {
+        // Remove spaces
+        char* p = token;
+        while (*p && isspace(*p)) p++;
+
+        if (*p) {
+            int day = atoi(p);
+            // Days in array are indexed from 0, but in CSV from 1
+            int dayIndex = day - 1;
+
+            if (dayIndex >= 0) {
+                // Check for special markers
+                if (strchr(p, '*') != NULL) {
+                    dayTypes[year][month][dayIndex] = SHORT_DAY;
+                } else {
+                    dayTypes[year][month][dayIndex] = dayType;
+                }
+            }
+        }
+
+        token = strtok(NULL, ",");
+    }
+}
+
+// Function for reading CSV file
+int readCalendarCSV(const char* filename, int yearIndex) {
+    FILE* file = fopen(filename, "r");
+    if (file == NULL) {
+        //printf("Error: could not open file %s\n", filename);
+        return -1;
+    }
+
+    char line[MAX_LINE_LENGTH];
+
+    // Skip header
+    if (fgets(line, sizeof(line), file) == NULL) {
+        fclose(file);
+        return -1;
+    }
+
+    // Read data line
+    if (fgets(line, sizeof(line), file) != NULL) {
+        // Remove newline character
+        line[strcspn(line, "\n")] = '\0';
+
+        char* token;
+        char* rest = line;
+        int monthIndex = 0;
+
+        // Skip first token (year)
+        token = strtok_r(rest, ";", &rest);
+
+        // Read monthly data (weekend days)
+        for (monthIndex = 0; monthIndex < MAX_MONTHS; monthIndex++) {
+            token = strtok_r(rest, ";", &rest);
+            if (token == NULL) {
+                break;
+            }
+
+            // Remove quotes if present
+            char cleanToken[MAX_LINE_LENGTH];
+            strcpy(cleanToken, token);
+            if (cleanToken[0] == '"' && cleanToken[strlen(cleanToken)-1] == '"') {
+                memmove(cleanToken, cleanToken + 1, strlen(cleanToken) - 2);
+                cleanToken[strlen(cleanToken) - 2] = '\0';
+            }
+
+            // Parse weekend days (type 2)
+            parseAndSetDays(yearIndex, monthIndex, cleanToken, WEEKEND_DAY);
+        }
+    }
+
+    fclose(file);
+    return 1;
+}
+
+// Function to replace filename in path
+// Returns new string with modified path (memory needs to be freed)
+char* replaceFilename(const char* path, const char* newFilename) {
+    if (path == NULL || newFilename == NULL) {
+        return NULL;
+    }
+
+    // Find last path separator
+    const char* lastSlash = strrchr(path, '/');
+    const char* lastBackslash = strrchr(path, '\\');
+    const char* lastSeparator = NULL;
+
+    // Choose the last separator
+    if (lastSlash && lastBackslash) {
+        lastSeparator = (lastSlash > lastBackslash) ? lastSlash : lastBackslash;
+    } else if (lastSlash) {
+        lastSeparator = lastSlash;
+    } else if (lastBackslash) {
+        lastSeparator = lastBackslash;
+    }
+
+    // Calculate new path length
+    int dirLength = 0;
+    if (lastSeparator) {
+        dirLength = lastSeparator - path + 1; // +1 to include separator
+    }
+
+    int newFilenameLength = strlen(newFilename);
+    int newPathLength = dirLength + newFilenameLength + 1; // +1 for '\0'
+
+    // Allocate memory for new path
+    char* newPath = (char*)malloc(newPathLength);
+    if (newPath == NULL) {
+        return NULL;
+    }
+
+    // Copy directory
+    if (dirLength > 0) {
+        strncpy(newPath, path, dirLength);
+        newPath[dirLength] = '\0';
+    } else {
+        newPath[0] = '\0';
+    }
+
+    // Add new filename
+    strcat(newPath, newFilename);
+
+    return newPath;
+}
+
 /*
- * Create an instance of the calendar window and load/set config options 
+ * Create an instance of the calendar window and load/set config options
  */
 CalendarPtr create_calendar(char *config_filename)
 {
@@ -571,6 +744,8 @@ CalendarPtr create_calendar(char *config_filename)
                     strfcpy(option.value, &this->foreground_color);
                 else if (strcmp(option.key, "fringe_date_color") == 0)
                     strfcpy(option.value, &this->fringe_date_color);
+				else if (strcmp(option.key, "nonworking_day_color") == 0)
+                    strfcpy(option.value, &this->nonworking_day_color);
                 else if (strcmp(option.key, "highlight_color") == 0)
                     strfcpy(option.value, &this->highlight_color);
 
@@ -615,6 +790,15 @@ CalendarPtr create_calendar(char *config_filename)
         } else {
             puts("No config file loaded. Using default settings");
         }
+
+		for(int i=START_YEAR, n=0;i<START_YEAR + MAX_YEARS - 1;i++,n++){
+			char nonworkingdays_csv[64];
+			sprintf(nonworkingdays_csv, "%s_%d.csv", "nonworkingdays", i);
+			char* csv_path = replaceFilename(config_filename, nonworkingdays_csv);
+			readCalendarCSV(csv_path, n);
+			free(csv_path);
+		}
+
         this->window = init_widgets(this);
         update_calendar(this);
         set_style(this);
@@ -641,6 +825,7 @@ void destroy_calendar(CalendarPtr this)
     free(this->background_color);
     free(this->foreground_color);
     free(this->fringe_date_color);
+    free(this->nonworking_day_color);
     free(this->highlight_color);
     if (gtk_main_level() !=0 && this->window != NULL) {
         g_object_unref(this->drawing_area);
@@ -648,4 +833,3 @@ void destroy_calendar(CalendarPtr this)
     }
     free(this);
 }
-

@@ -18,3 +18,4 @@ fi
 sudo mkdir -p /usr/share/galendae/config/
 sudo cp galendae         /usr/local/bin/galendae
 sudo cp config/dark.conf /usr/share/galendae/config/galendae.conf
+sudo cp config/*.csv /usr/share/galendae/config/
