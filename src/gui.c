@@ -394,6 +394,18 @@ gboolean on_right_click(GtkWidget *UNUSED(widget), GdkEventButton *event, gpoint
     return FALSE;
 }
 
+gboolean on_scroll(GtkWidget *UNUSED(widget), GdkEventScroll *event, CalendarPtr this)
+{
+   int success = 0;
+   if (event->direction == GDK_SCROLL_UP)
+	   success = inc_month(1, &this->month, &this->year);
+   else if (event->direction == GDK_SCROLL_DOWN)
+      success = inc_month(-1, &this->month, &this->year);
+   if (success) update_calendar(this);
+   return success;
+}
+
+
 /*
  * Create the main window and add all needed widgets
  */
@@ -422,6 +434,9 @@ GtkWidget* init_widgets(CalendarPtr this)
                 "focus_out_event", G_CALLBACK(gtk_widget_destroy), NULL);
     gtk_container_set_border_width(GTK_CONTAINER(window), 10);
     g_signal_connect(GTK_WINDOW(window), "button-press-event", G_CALLBACK(on_right_click), NULL);
+	// Scroll months by mouse wheel
+    gtk_widget_add_events(window, GDK_SCROLL_MASK | GDK_SMOOTH_SCROLL_MASK);
+    g_signal_connect_after(GTK_WINDOW(window), "scroll-event", G_CALLBACK(on_scroll), this);
 
     grid = gtk_grid_new();
     gtk_widget_set_name(GTK_WIDGET(grid), "grid");
